@@ -14,7 +14,7 @@ CURRENT_VERSION = "1.0.0"
 # URL padrão para checagem de atualizações (pode ser sobrescrito por variável de ambiente)
 DEFAULT_UPDATE_URL = os.environ.get(
     "IMPCON_UPDATE_URL",
-    "https://raw.githubusercontent.com/alemao/ImpCon/main/version.json"
+    "https://raw.githubusercontent.com/postrenan/ImpCon/main/build/updates/version.json"
 )
 
 def parse_version(ver_str: str) -> tuple[int, ...]:

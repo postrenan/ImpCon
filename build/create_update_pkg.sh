@@ -22,7 +22,7 @@ SIZE=$(du -h "$ZIP_PATH" | cut -f1)
 cat > "${OUTPUT_DIR}/version.json" << EOF
 {
   "version": "${VERSION}",
-  "download_url": "https://raw.githubusercontent.com/alemao/ImpCon/main/build/updates/${ZIP_NAME}",
+  "download_url": "https://raw.githubusercontent.com/postrenan/ImpCon/main/build/updates/${ZIP_NAME}",
   "changelog": "${CHANGELOG}"
 }
 EOF
