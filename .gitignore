@@ -1,0 +1,19 @@
+# Virtual Environment
+.venv
+venv
+
+# Application Runtime Directories
+logs
+temp
+*.log
+
+# Heavy Build Artifacts
+build/ImpCon-Windows-x64
+build/*.7z*
+build/*.zip
+build/updates/*.zip
+
+# OS and Cache
+__pycache__
+*.pyc
+.DS_Store

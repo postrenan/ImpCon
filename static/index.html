@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ImpCon — Análise Visual de Contratos</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0F1923;
+      --surface: #1A2535;
+      --card:    #212F45;
+      --border:  #2E4060;
+      --blue:    #2E86AB;
+      --blue-lt: #3A9EC4;
+      --green:   #27AE60;
+      --red:     #E74C3C;
+      --orange:  #F39C12;
+      --purple:  #8E44AD;
+      --teal:    #1ABC9C;
+      --text:    #E8EDF2;
+      --muted:   #7A92A8;
+      --radius:  10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 60px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
+    header { text-align: center; margin-bottom: 32px; }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header h1 span { color: var(--blue); }
+    header p { color: var(--muted); margin-top: 6px; font-size: 0.93rem; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 99px; padding: 3px 10px;
+      font-size: 0.78rem; color: var(--green); margin-top: 10px;
+    }
+    .badge::before { content: '●'; font-size: 0.55rem; }
+    .ver-badge { font-size: 0.8rem; color: var(--muted); font-weight: 400; margin-left: 6px; }
+
+    /* ── Update Banner ───────────────────────────────────────────────────────── */
+    .update-banner {
+      width: 100%; max-width: 780px;
+      background: linear-gradient(135deg, rgba(46,134,171,0.18), rgba(39,174,96,0.18));
+      border: 1px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 14px 18px; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .update-info { flex: 1; font-size: 0.88rem; }
+    .update-info strong { color: var(--text); }
+    .update-desc { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+    .update-btn {
+      padding: 8px 16px; background: var(--green); color: white;
+      border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+    }
+    .update-btn:hover:not(:disabled) { opacity: 0.88; }
+    .update-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Cards ───────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      width: 100%; max-width: 780px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 14px;
+    }
+
+    /* ── Model row ───────────────────────────────────────────────────────────── */
+    .model-row { display: flex; align-items: center; gap: 10px; }
+    .model-row label { color: var(--muted); font-size: 0.87rem; white-space: nowrap; }
+    .model-row select {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 7px 10px;
+      font-size: 0.9rem; outline: none; cursor: pointer;
+    }
+    .model-row select:focus { border-color: var(--blue); }
+    #model-status { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+    /* ── Diagram selector grid ───────────────────────────────────────────────── */
+    .diag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 10px;
+    }
+    .diag-card {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      user-select: none; position: relative;
+    }
+    .diag-card.active {
+      border-color: var(--diag-color, var(--blue));
+      background: color-mix(in srgb, var(--diag-color, var(--blue)) 8%, var(--card));
+    }
+    .diag-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .diag-icon { font-size: 1.4rem; }
+    .diag-toggle {
+      width: 36px; height: 20px; background: var(--border);
+      border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0;
+    }
+    .diag-toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; background: white;
+      border-radius: 50%; transition: transform 0.2s;
+    }
+    .diag-card.active .diag-toggle { background: var(--diag-color, var(--blue)); }
+    .diag-card.active .diag-toggle::after { transform: translateX(16px); }
+    .diag-name { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+    .diag-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+    .diag-detail { margin-top: 10px; display: none; }
+    .diag-card.active .diag-detail { display: block; }
+    .diag-detail label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    .detail-pills { display: flex; gap: 5px; }
+    .pill {
+      flex: 1; padding: 4px 0; text-align: center;
+      font-size: 0.75rem; font-weight: 600;
+      border: 1px solid var(--border); border-radius: 5px;
+      background: var(--surface); color: var(--muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .pill.selected {
+      background: var(--diag-color, var(--blue));
+      border-color: var(--diag-color, var(--blue)); color: white;
+    }
+    .detail-hint { font-size: 0.72rem; color: var(--muted); margin-top: 5px; min-height: 1.2em; }
+
+    /* ── Bulk controls ────────────────────────────────────────────────────────── */
+    .bulk-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .bulk-btn {
+      padding: 5px 12px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 6px;
+      color: var(--muted); font-size: 0.8rem; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .bulk-btn:hover { color: var(--text); border-color: var(--text); }
+    .global-detail-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .global-detail-row span { font-size: 0.82rem; color: var(--muted); }
+    .global-pills { display: flex; gap: 6px; }
+    .global-pill {
+      padding: 4px 12px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 99px;
+      font-size: 0.8rem; color: var(--muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .global-pill.selected { background: var(--blue); border-color: var(--blue); color: white; }
+
+    /* ── Drop zone ────────────────────────────────────────────────────────────── */
+    #drop-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 40px 24px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s; position: relative;
+    }
+    #drop-zone.hover  { border-color: var(--blue); background: rgba(46,134,171,0.06); }
+    #drop-zone.active { border-color: var(--green); background: rgba(39,174,96,0.05); }
+    #drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .dz-icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .dz-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .dz-sub { color: var(--muted); font-size: 0.83rem; }
+    #file-name { margin-top: 8px; font-size: 0.88rem; color: var(--green); font-weight: 600; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%; padding: 13px; background: var(--blue); color: white; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--blue-lt); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-green {
+      width: 100%; padding: 13px; background: var(--green); color: white; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-green:hover:not(:disabled) { opacity: 0.88; }
+    .btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost {
+      width: 100%; padding: 10px; background: transparent;
+      color: var(--muted); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 0.88rem; cursor: pointer;
+      margin-top: 10px; transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+
+    /* ── Progress ─────────────────────────────────────────────────────────────── */
+    .step-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .step {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; background: var(--card);
+      border-radius: 8px; border-left: 3px solid var(--border);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .step.active { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, var(--card)); }
+    .step.active .step-icon { display: inline-block; animation: clock-tick 1.4s infinite ease-in-out; }
+    .step.done   { border-color: var(--green); background: color-mix(in srgb, var(--green) 5%, var(--card)); }
+    .step.error  { border-color: var(--red); background: color-mix(in srgb, var(--red) 8%, var(--card)); }
+    .step-icon   { font-size: 1.3rem; flex-shrink: 0; line-height: 1.4; transition: transform 0.2s; }
+    .step-body   { flex: 1; }
+    .step-title  { font-weight: 600; font-size: 0.9rem; }
+    .step-msg    { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+
+    @keyframes clock-tick {
+      0%   { transform: scale(1) rotate(0deg); opacity: 1; }
+      50%  { transform: scale(1.18) rotate(15deg); opacity: 0.85; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    /* ── Diagram preview stage ───────────────────────────────────────────────── */
+    .preview-intro {
+      color: var(--muted); font-size: 0.9rem; line-height: 1.5;
+      margin-bottom: 18px; padding: 10px 14px;
+      background: var(--card); border-left: 3px solid var(--blue);
+      border-radius: 6px;
+    }
+    .mini-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; margin-bottom: 18px;
+    }
+    .mini-stat {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 7px; padding: 10px 12px; text-align: center;
+    }
+    .mini-stat-num { font-size: 1.4rem; font-weight: 700; color: var(--blue); }
+    .mini-stat-lbl { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+    .diag-preview-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+    .diag-preview-item {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      transition: border-color 0.2s, opacity 0.2s;
+    }
+    .diag-preview-item.included { border-color: var(--green); }
+    .diag-preview-item.excluded { opacity: 0.45; border-color: var(--border); }
+
+    .diag-preview-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .diag-preview-label {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 0.92rem;
+    }
+    .diag-preview-label .icon { font-size: 1.1rem; }
+    .diag-preview-actions { display: flex; align-items: center; gap: 10px; }
+    .diag-preview-badge {
+      font-size: 0.74rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 99px; border: 1px solid currentColor;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .diag-preview-badge.inc { color: var(--green); }
+    .diag-preview-badge.exc { color: var(--muted); }
+
+    .toggle-diag-btn {
+      padding: 5px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 0.8rem; font-weight: 600; border: 1px solid;
+      transition: all 0.15s;
+    }
+    .toggle-diag-btn.remove {
+      background: rgba(231,76,60,0.12); border-color: var(--red); color: var(--red);
+    }
+    .toggle-diag-btn.remove:hover { background: rgba(231,76,60,0.25); }
+    .toggle-diag-btn.restore {
+      background: rgba(39,174,96,0.12); border-color: var(--green); color: var(--green);
+    }
+    .toggle-diag-btn.restore:hover { background: rgba(39,174,96,0.25); }
+
+    .diag-preview-img-wrapper {
+      background: white; padding: 12px; text-align: center;
+    }
+    .diag-preview-img-wrapper img {
+      max-width: 100%; height: auto; display: inline-block;
+      border-radius: 4px;
+    }
+
+    .preview-empty {
+      text-align: center; padding: 28px;
+      color: var(--muted); font-size: 0.9rem;
+    }
+
+    /* ── Result ───────────────────────────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
+    .stat-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .stat-num { font-size: 1.6rem; font-weight: 700; color: var(--blue); }
+    .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .resumo-box {
+      background: var(--card); border-left: 3px solid var(--blue);
+      border-radius: 6px; padding: 12px 14px;
+      font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+    .chip {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 99px; padding: 4px 12px; font-size: 0.83rem;
+    }
+    .chip.blue   { border-color: var(--blue);   color: var(--blue); }
+    .chip.green  { border-color: var(--green);  color: var(--green); }
+    .chip.orange { border-color: var(--orange); color: var(--orange); }
+
+    #btn-download {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px;
+      background: var(--green); color: white; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; text-decoration: none; transition: opacity 0.15s;
+    }
+    #btn-download:hover { opacity: 0.88; }
+
+    footer {
+      margin-top: 36px; color: var(--muted);
+      font-size: 0.77rem; text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Imp<span>Con</span> <span class="ver-badge">v1.0.0</span></h1>
+  <p>Análise visual automatizada de contratos e minutas</p>
+  <div class="badge">100% Local — nenhum dado enviado para fora</div>
+</header>
+
+<!-- ── Update notification banner ─────────────────────────────────────────── -->
+<div class="update-banner" id="update-banner" style="display:none">
+  <div style="font-size:1.5rem">✨</div>
+  <div class="update-info">
+    <strong>Nova atualização disponível (<span id="update-ver">v1.1.0</span>)!</strong>
+    <div class="update-desc" id="update-changelog">Melhorias gerais e correções de desempenho.</div>
+  </div>
+  <button class="update-btn" id="btn-update-now" onclick="applyUpdate()">Atualizar Agora</button>
+</div>
+
+<!-- ── Upload card ─────────────────────────────────────────────────────────── -->
+<div class="card" id="upload-card">
+  <div class="card-title">Modelo de IA</div>
+  <div class="model-row">
+    <label>Modelo:</label>
+    <select id="model-select">
+      <option value="llama3.2:3b">llama3.2:3b</option>
+    </select>
+    <span id="model-status">carregando…</span>
+  </div>
+</div>
+
+<!-- ── Diagram config card ─────────────────────────────────────────────────── -->
+<div class="card" id="diag-card">
+  <div class="card-title">Diagramas a Gerar</div>
+
+  <div class="bulk-row">
+    <button class="bulk-btn" onclick="setAll(true)">Selecionar todos</button>
+    <button class="bulk-btn" onclick="setAll(false)">Desmarcar todos</button>
+  </div>
+
+  <div class="global-detail-row">
+    <span>Nível de detalhe global:</span>
+    <div class="global-pills">
+      <div class="global-pill" data-level="resumido" onclick="setGlobalDetail('resumido')">Resumido</div>
+      <div class="global-pill selected" data-level="completo" onclick="setGlobalDetail('completo')">Completo</div>
+      <div class="global-pill" data-level="maximo" onclick="setGlobalDetail('maximo')">Máximo</div>
+    </div>
+  </div>
+
+  <div class="diag-grid" id="diag-grid"></div>
+</div>
+
+<!-- ── File card ───────────────────────────────────────────────────────────── -->
+<div class="card" id="file-card">
+  <div class="card-title">Documento</div>
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept=".docx,.pdf,.txt,.md">
+    <div class="dz-icon">📄</div>
+    <div class="dz-title">Arraste o contrato aqui</div>
+    <div class="dz-sub">ou clique para selecionar · .docx · .pdf · .txt · .md (máx. 20 MB)</div>
+    <div id="file-name"></div>
+  </div>
+  <button id="btn-process" class="btn-primary" style="margin-top:14px" disabled>Analisar Contrato</button>
+</div>
+
+<!-- ── Progress card ──────────────────────────────────────────────────────── -->
+<div class="card" id="progress-card" style="display:none">
+  <div class="card-title" style="margin-bottom:16px" id="progress-title">Processando…</div>
+  <ul class="step-list">
+    <li class="step" id="step-reading">
+      <span class="step-icon" id="icon-reading">📖</span>
+      <div class="step-body">
+        <div class="step-title">Lendo documento</div>
+        <div class="step-msg" id="msg-reading">Aguardando…</div>
+      </div>
+    </li>
+    <li class="step" id="step-extracting">
+      <span class="step-icon" id="icon-extracting">🤖</span>
+      <div class="step-body">
+        <div class="step-title">Extração com IA local</div>
+        <div class="step-msg" id="msg-extracting">Aguardando…</div>
+      </div>
+    </li>
+    <li class="step" id="step-diagrams">
+      <span class="step-icon" id="icon-diagrams">📊</span>
+      <div class="step-body">
+        <div class="step-title">Gerando diagramas</div>
+        <div class="step-msg" id="msg-diagrams">Aguardando…</div>
+      </div>
+    </li>
+    <li class="step" id="step-pdf">
+      <span class="step-icon" id="icon-pdf">📑</span>
+      <div class="step-body">
+        <div class="step-title">Montando PDF visual</div>
+        <div class="step-msg" id="msg-pdf">Aguardando…</div>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- ── Preview card (review diagrams before building PDF) ─────────────────── -->
+<div class="card" id="preview-card" style="display:none">
+  <div class="card-title">Revisar Diagramas Gerados</div>
+
+  <div class="preview-intro">
+    Veja cada diagrama gerado pela IA. Você pode <strong>remover</strong> algum antes de gerar o PDF final.
+    Clique em "Remover" para excluir, ou "Restaurar" para incluir novamente.
+  </div>
+
+  <div class="mini-stats" id="preview-stats"></div>
+
+  <div class="diag-preview-list" id="diag-preview-list">
+    <div class="preview-empty">Carregando diagramas…</div>
+  </div>
+
+  <button class="btn-green" id="btn-build">Gerar PDF Final</button>
+  <button class="btn-ghost" id="btn-back-to-upload">Recomeçar do zero</button>
+</div>
+
+<!-- ── Result card ────────────────────────────────────────────────────────── -->
+<div class="card" id="result-card" style="display:none">
+  <div class="card-title">PDF Gerado com Sucesso</div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="resumo-box" id="resumo-box"></div>
+  <div class="section-title">Partes Identificadas</div>
+  <div class="chip-list" id="partes-list"></div>
+  <div class="section-title">Diagramas Incluídos no PDF</div>
+  <div class="chip-list" id="diag-result-list"></div>
+  <a id="btn-download" href="#" download="contrato_visual.pdf">⬇ Baixar PDF Visual</a>
+  <button class="btn-ghost" id="btn-reset">Analisar outro contrato</button>
+</div>
+
+<footer>ImpCon · Processamento 100% local · Dados nunca enviados para servidores externos</footer>
+
+<script>
+// ── Diagram definitions ──────────────────────────────────────────────────────
+const DIAGRAMS = [
+  { key: 'parties',     icon: '🔗', name: 'Relacionamento de Partes',
+    desc: 'Vínculos entre contratante, contratado, fiadores e testemunhas.',
+    color: '#2E86AB',
+    hints: { resumido: 'Até 4 partes', completo: 'Até 8 partes', maximo: 'Todas as partes' } },
+  { key: 'timeline',    icon: '📅', name: 'Linha do Tempo',
+    desc: 'Datas de início, término, pagamentos e entregas em ordem cronológica.',
+    color: '#27AE60',
+    hints: { resumido: 'Até 4 datas', completo: 'Até 8 datas', maximo: 'Todas as datas' } },
+  { key: 'obligations', icon: '📋', name: 'Fluxo de Obrigações',
+    desc: 'O que cada parte deve cumprir, agrupado por responsável e com prazos.',
+    color: '#8E44AD',
+    hints: { resumido: 'Até 4 obrigações', completo: 'Até 8 obrigações', maximo: 'Todas' } },
+  { key: 'values',      icon: '💰', name: 'Valores Financeiros',
+    desc: 'Comparativo de valores, honorários e periodicidade de pagamento.',
+    color: '#F39C12',
+    hints: { resumido: 'Até 4 valores', completo: 'Até 8 valores', maximo: 'Todos' } },
+  { key: 'penalties',   icon: '⚠️', name: 'Mapa de Penalidades',
+    desc: 'Condições e sanções classificadas por severidade: alta, média e baixa.',
+    color: '#E74C3C',
+    hints: { resumido: 'Até 4 penalidades', completo: 'Até 8 penalidades', maximo: 'Todas' } },
+];
+
+const DIAG_META = Object.fromEntries(DIAGRAMS.map(d => [d.key, d]));
+
+// ── State ────────────────────────────────────────────────────────────────────
+const state = {};
+DIAGRAMS.forEach(d => { state[d.key] = { enabled: true, detail: 'completo' }; });
+
+let currentSession = null;
+
+// ── Render diagram selector cards ────────────────────────────────────────────
+function renderDiagGrid() {
+  const grid = document.getElementById('diag-grid');
+  grid.innerHTML = '';
+  DIAGRAMS.forEach(def => {
+    const s = state[def.key];
+    const card = document.createElement('div');
+    card.className = 'diag-card' + (s.enabled ? ' active' : '');
+    card.style.setProperty('--diag-color', def.color);
+    card.dataset.key = def.key;
+    card.innerHTML = `
+      <div class="diag-header">
+        <span class="diag-icon">${def.icon}</span>
+        <div class="diag-toggle"></div>
+      </div>
+      <div class="diag-name">${def.name}</div>
+      <div class="diag-desc">${def.desc}</div>
+      <div class="diag-detail">
+        <label>Quantidade de itens:</label>
+        <div class="detail-pills">
+          <div class="pill${s.detail==='resumido'?' selected':''}" data-level="resumido">Resumido</div>
+          <div class="pill${s.detail==='completo'?' selected':''}" data-level="completo">Completo</div>
+          <div class="pill${s.detail==='maximo'?' selected':''}" data-level="maximo">Máximo</div>
+        </div>
+        <div class="detail-hint">${def.hints[s.detail]}</div>
+      </div>`;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.detail-pills')) return;
+      state[def.key].enabled = !state[def.key].enabled;
+      renderDiagGrid();
+    });
+    card.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state[def.key].enabled) return;
+        state[def.key].detail = pill.dataset.level;
+        renderDiagGrid();
+      });
+    });
+    grid.appendChild(card);
+  });
+}
+
+function setAll(enabled) {
+  DIAGRAMS.forEach(d => { state[d.key].enabled = enabled; });
+  renderDiagGrid();
+}
+
+function setGlobalDetail(level) {
+  document.querySelectorAll('.global-pill').forEach(p => {
+    p.classList.toggle('selected', p.dataset.level === level);
+  });
+  DIAGRAMS.forEach(d => { state[d.key].detail = level; });
+  renderDiagGrid();
+}
+
+// ── Load models ──────────────────────────────────────────────────────────────
+async function loadModels() {
+  try {
+    const r = await fetch('/api/models');
+    const d = await r.json();
+    const sel = document.getElementById('model-select');
+    const status = document.getElementById('model-status');
+    if (d.ok && d.models.length > 0) {
+      sel.innerHTML = d.models.map(m => `<option value="${m}">${m}</option>`).join('');
+      const pref = d.models.find(m => m.includes('3b')) || d.models[0];
+      sel.value = pref;
+      status.textContent = `${d.models.length} modelo(s)`;
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = '⚠ Ollama offline';
+      status.style.color = 'var(--red)';
+    }
+  } catch {
+    document.getElementById('model-status').textContent = '⚠ Erro';
+    document.getElementById('model-status').style.color = 'var(--red)';
+  }
+}
+
+// ── Drop zone ─────────────────────────────────────────────────────────────────
+let selectedFile = null;
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const fileName   = document.getElementById('file-name');
+const btnProcess = document.getElementById('btn-process');
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('hover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('hover');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  const ext = '.' + f.name.split('.').pop().toLowerCase();
+  if (!['.docx','.pdf','.txt','.md'].includes(ext)) {
+    alert(`Formato não suportado: ${ext}`); return;
+  }
+  selectedFile = f;
+  fileName.textContent = `✓ ${f.name}  (${(f.size/1024).toFixed(0)} KB)`;
+  dropZone.classList.add('active');
+  btnProcess.disabled = false;
+}
+
+// ── Process (stage 1) ────────────────────────────────────────────────────────
+btnProcess.addEventListener('click', processContract);
+
+async function processContract() {
+  if (!selectedFile) return;
+
+  if (!DIAGRAMS.some(d => state[d.key].enabled)) {
+    if (!confirm('Nenhum diagrama selecionado. Continuar mesmo assim?')) return;
+  }
+
+  btnProcess.disabled = true;
+  hide('upload-card', 'diag-card', 'file-card');
+  show('progress-card');
+  document.getElementById('progress-title').textContent = 'Processando…';
+  resetSteps();
+
+  const diagramConfig = {};
+  DIAGRAMS.forEach(d => { diagramConfig[d.key] = { enabled: state[d.key].enabled, detail: state[d.key].detail }; });
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('model', document.getElementById('model-select').value);
+  fd.append('diagram_config', JSON.stringify(diagramConfig));
+
+  let sessionId;
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', body: fd });
+    if (!r.ok) { const err = await r.json(); throw new Error(err.detail || 'Erro no upload'); }
+    sessionId = (await r.json()).session_id;
+    currentSession = sessionId;
+  } catch (e) { showError(e.message); return; }
+
+  const es = new EventSource(`/api/process/${sessionId}`);
+
+  es.onmessage = ({ data }) => {
+    const msg = JSON.parse(data);
+
+    if (msg.type === 'progress') {
+      const order = ['reading','extracting','diagrams','pdf'];
+      const idx = order.indexOf(msg.step);
+      updateStep(msg.step, 'active', msg.message);
+      if (idx > 0) markDone(order[idx - 1]);
+    }
+
+    if (msg.type === 'preview') {
+      es.close();
+      markDone('reading'); markDone('extracting'); markDone('diagrams');
+      setTimeout(() => showPreview(msg, sessionId), 350);
+    }
+
+    if (msg.type === 'complete') {
+      // fallback if server sends complete directly
+      es.close();
+      ['reading','extracting','diagrams','pdf'].forEach(markDone);
+      setTimeout(() => showResult(msg, sessionId), 350);
+    }
+
+    if (msg.type === 'error') {
+      es.close(); showError(msg.message);
+    }
+  };
+
+  es.onerror = () => { es.close(); showError('Conexão interrompida.'); };
+}
+
+// ── Preview stage ────────────────────────────────────────────────────────────
+
+// Map: diagram key → is excluded?
+const previewExcluded = {};
+
+function showPreview(msg, sessionId) {
+  hide('progress-card');
+  show('preview-card');
+
+  const data = msg.data || {};
+  const diagrams = msg.diagrams || [];
+
+  // Mini stats
+  document.getElementById('preview-stats').innerHTML = [
+    { n: data.partes?.length  || 0, l: 'Partes' },
+    { n: data.datas?.length   || 0, l: 'Datas' },
+    { n: data.valores?.length || 0, l: 'Valores' },
+    { n: diagrams.length,           l: 'Diagramas' },
+  ].map(s => `
+    <div class="mini-stat">
+      <div class="mini-stat-num">${s.n}</div>
+      <div class="mini-stat-lbl">${s.l}</div>
+    </div>`).join('');
+
+  // Diagram list
+  const list = document.getElementById('diag-preview-list');
+
+  if (diagrams.length === 0) {
+    list.innerHTML = '<div class="preview-empty">Nenhum diagrama foi gerado. O contrato pode ter poucos dados estruturados.</div>';
+  } else {
+    diagrams.forEach(d => { previewExcluded[d.key] = false; });
+
+    list.innerHTML = diagrams.map(d => {
+      const meta = DIAG_META[d.key] || { icon: '📊', name: d.label };
+      return `
+        <div class="diag-preview-item included" id="preview-item-${d.key}">
+          <div class="diag-preview-header">
+            <div class="diag-preview-label">
+              <span class="icon">${meta.icon}</span>
+              ${d.label}
+            </div>
+            <div class="diag-preview-actions">
+              <span class="diag-preview-badge inc" id="badge-${d.key}">Incluído</span>
+              <button class="toggle-diag-btn remove" id="toggle-btn-${d.key}"
+                      onclick="toggleDiagram('${d.key}')">Remover</button>
+            </div>
+          </div>
+          <div class="diag-preview-img-wrapper">
+            <img src="${d.url}?t=${Date.now()}" alt="${d.label}" loading="lazy">
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('btn-build').onclick = () => buildPdf(sessionId);
+}
+
+function toggleDiagram(key) {
+  previewExcluded[key] = !previewExcluded[key];
+  const excluded = previewExcluded[key];
+  const item   = document.getElementById(`preview-item-${key}`);
+  const badge  = document.getElementById(`badge-${key}`);
+  const btn    = document.getElementById(`toggle-btn-${key}`);
+
+  if (excluded) {
+    item.className  = 'diag-preview-item excluded';
+    badge.className = 'diag-preview-badge exc';
+    badge.textContent = 'Removido';
+    btn.className = 'toggle-diag-btn restore';
+    btn.textContent = 'Restaurar';
+  } else {
+    item.className  = 'diag-preview-item included';
+    badge.className = 'diag-preview-badge inc';
+    badge.textContent = 'Incluído';
+    btn.className = 'toggle-diag-btn remove';
+    btn.textContent = 'Remover';
+  }
+}
+
+// ── Build PDF (stage 2) ──────────────────────────────────────────────────────
+async function buildPdf(sessionId) {
+  const excluded = Object.entries(previewExcluded)
+    .filter(([, v]) => v).map(([k]) => k);
+
+  document.getElementById('btn-build').disabled = true;
+  document.getElementById('btn-build').textContent = 'Gerando PDF…';
+
+  hide('preview-card');
+  show('progress-card');
+  document.getElementById('progress-title').textContent = 'Gerando PDF…';
+  // Mark first 3 steps done, 4th active
+  markDone('reading'); markDone('extracting'); markDone('diagrams');
+  updateStep('pdf', 'active', 'Iniciando…');
+
+  const res = await fetch(`/api/build/${sessionId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ excluded }),
+  });
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const msg = JSON.parse(line.slice(6));
+      if (msg.type === 'progress') {
+        updateStep('pdf', 'active', msg.message);
+      }
+      if (msg.type === 'complete') {
+        markDone('pdf');
+        setTimeout(() => showResult(msg, sessionId), 350);
+      }
+      if (msg.type === 'error') {
+        showError(msg.message);
+      }
+    }
+  }
+}
+
+// ── Result ────────────────────────────────────────────────────────────────────
+const DIAG_LABELS = {
+  parties: '🔗 Partes', timeline: '📅 Timeline',
+  obligations: '📋 Obrigações', values: '💰 Valores', penalties: '⚠️ Penalidades',
+};
+const PARTY_COLORS_MAP = { contratante: 'blue', contratado: 'green', fiador: 'orange' };
+
+function showResult(msg, sessionId) {
+  hide('progress-card');
+  show('result-card');
+
+  const data  = msg.data  || {};
+  const diags = msg.diagrams || [];
+
+  document.getElementById('stat-grid').innerHTML = [
+    { n: data.partes?.length || 0,               l: 'Partes' },
+    { n: data.datas?.length  || 0,               l: 'Datas' },
+    { n: data.valores?.length || 0,              l: 'Valores' },
+    { n: data.clausulas_principais?.length || 0, l: 'Cláusulas' },
+  ].map(s => `<div class="stat-box"><div class="stat-num">${s.n}</div><div class="stat-label">${s.l}</div></div>`).join('');
+
+  document.getElementById('resumo-box').textContent = data.resumo || 'Resumo não disponível.';
+
+  document.getElementById('partes-list').innerHTML = (data.partes || []).length
+    ? (data.partes || []).map(p => {
+        const t = (p.tipo||'').toLowerCase().split(' ')[0];
+        return `<span class="chip ${PARTY_COLORS_MAP[t]||''}">${p.nome||'?'} <small style="opacity:.65">${p.tipo||''}</small></span>`;
+      }).join('')
+    : '<span class="chip">Nenhuma parte identificada</span>';
+
+  document.getElementById('diag-result-list').innerHTML = diags.length
+    ? diags.map(d => `<span class="chip green">${DIAG_LABELS[d] || d}</span>`).join('')
+    : '<span class="chip">Nenhum diagrama incluído</span>';
+
+  document.getElementById('btn-download').href = `/api/download/${sessionId}`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function show(...ids) { ids.forEach(id => { document.getElementById(id).style.display = 'block'; }); }
+function hide(...ids) { ids.forEach(id => { document.getElementById(id).style.display = 'none'; }); }
+
+const DEFAULT_STEP_ICONS = {
+  reading: '📖',
+  extracting: '🤖',
+  diagrams: '📊',
+  pdf: '📑'
+};
+
+function resetSteps() {
+  ['reading','extracting','diagrams','pdf'].forEach(s => {
+    const el = document.getElementById(`step-${s}`);
+    if (el) el.className = 'step';
+    const icon = document.getElementById(`icon-${s}`);
+    if (icon) icon.textContent = DEFAULT_STEP_ICONS[s];
+    const m = document.getElementById(`msg-${s}`);
+    if (m) m.textContent = 'Aguardando…';
+  });
+}
+
+function updateStep(step, cls, msg) {
+  const el = document.getElementById(`step-${step}`);
+  if (el) el.className = `step ${cls}`;
+
+  const icon = document.getElementById(`icon-${step}`);
+  if (icon) {
+    if (cls === 'active') {
+      icon.textContent = '⏰';
+    } else if (cls === 'done') {
+      icon.textContent = '✅';
+    } else if (cls === 'error') {
+      icon.textContent = '❌';
+    }
+  }
+
+  if (msg) {
+    const m = document.getElementById(`msg-${step}`);
+    if (m) m.textContent = msg;
+  }
+}
+
+function markDone(step) {
+  updateStep(step, 'done');
+}
+
+function showError(msg) {
+  hide('progress-card', 'preview-card', 'result-card');
+  show('upload-card', 'diag-card', 'file-card');
+  btnProcess.disabled = false;
+  document.getElementById('btn-build').disabled  = false;
+  document.getElementById('btn-build').textContent = 'Gerar PDF Final';
+  alert(`Erro: ${msg}`);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function doReset() {
+  selectedFile = null; currentSession = null;
+  fileName.textContent = '';
+  dropZone.className   = '';
+  fileInput.value      = '';
+  btnProcess.disabled  = true;
+  document.getElementById('btn-build').disabled  = false;
+  document.getElementById('btn-build').textContent = 'Gerar PDF Final';
+  hide('result-card', 'progress-card', 'preview-card');
+  show('upload-card', 'diag-card', 'file-card');
+  Object.keys(previewExcluded).forEach(k => delete previewExcluded[k]);
+}
+document.getElementById('btn-reset').addEventListener('click', doReset);
+document.getElementById('btn-back-to-upload').addEventListener('click', doReset);
+
+// ── Auto-Updater ─────────────────────────────────────────────────────────────
+let pendingUpdateUrl = null;
+
+async function checkUpdate() {
+  try {
+    const r = await fetch('/api/update/check');
+    const d = await r.json();
+    if (d.ok && d.update_available) {
+      pendingUpdateUrl = d.download_url;
+      document.getElementById('update-ver').textContent = 'v' + d.latest_version;
+      if (d.changelog) document.getElementById('update-changelog').textContent = d.changelog;
+      document.getElementById('update-banner').style.display = 'flex';
+    }
+  } catch (e) {
+    console.log('Verificação de atualização remota ignorada ou offline.');
+  }
+}
+
+async function applyUpdate() {
+  if (!pendingUpdateUrl) return;
+  const btn = document.getElementById('btn-update-now');
+  btn.disabled = true;
+  btn.textContent = 'Baixando...';
+
+  try {
+    const r = await fetch('/api/update/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ download_url: pendingUpdateUrl })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      btn.textContent = '✓ Concluído!';
+      alert(d.message);
+      window.location.reload();
+    } else {
+      alert('Erro ao instalar atualização: ' + (d.error || 'Erro desconhecido'));
+      btn.disabled = false;
+      btn.textContent = 'Tentar Novamente';
+    }
+  } catch (e) {
+    alert('Erro de comunicação durante a atualização: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Tentar Novamente';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderDiagGrid();
+loadModels();
+checkUpdate();
+</script>
+</body>
+</html>
