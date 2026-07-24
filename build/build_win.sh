@@ -76,11 +76,22 @@ EOF
 
 # Copiar site-packages compilados para Windows
 mkdir -p "$OUT_DIR/bin/python/Lib/site-packages"
+if [ ! -d "/tmp/wine_py/Lib/site-packages/uvicorn" ]; then
+    echo "  Baixando e instalando dependências Python para Windows via pip..."
+    mkdir -p /tmp/wine_py
+    unzip -q -o "$PY_ZIP" -d /tmp/wine_py
+    echo -e "python311.zip\n.\nLib/site-packages\nimport site" > /tmp/wine_py/python311._pth
+    curl -sSL -o /tmp/wine_py/get-pip.py https://bootstrap.pypa.io/get-pip.py
+    export WINEPREFIX=${WINEPREFIX:-$HOME/.wine_win11}
+    wine /tmp/wine_py/python.exe /tmp/wine_py/get-pip.py --no-warn-script-location
+    wine /tmp/wine_py/python.exe -m pip install numpy==1.26.4 fastapi uvicorn python-multipart reportlab pdfplumber matplotlib httpx pydantic python-docx --no-warn-script-location
+fi
+
 if [ -d "/tmp/wine_py/Lib/site-packages" ]; then
     cp -r /tmp/wine_py/Lib/site-packages/* "$OUT_DIR/bin/python/Lib/site-packages/"
     ok "Dependências Python (FastAPI, Uvicorn, ReportLab, PdfPlumber, Matplotlib) integradas!"
 else
-    warn "site-packages não encontrado em /tmp/wine_py. Certifique-se de que os pacotes foram instalados."
+    die "Falha ao preparar site-packages do Python para Windows."
 fi
 
 # ── 4. Copiar código do projeto ───────────────────────────────────────────────
