@@ -10,6 +10,15 @@
 
 ---
 
+## 📥 Download Direto (Windows 1-Clique)
+
+Para rodar no Windows **sem precisar instalar Python, Git ou dependências**, baixe o pacote executável portátil pronto:
+
+👉 **[⚡ Baixar ImpCon v1.0.0 para Windows (.7z — 1.9 GB)](https://github.com/postrenan/ImpCon/releases/download/v1.0.0/ImpCon-Windows-x64.7z)**  
+🔗 **[Ver todas as versões e arquivos na página de Releases](https://github.com/postrenan/ImpCon/releases)**
+
+---
+
 ## ✨ Principais Funcionalidades
 
 - 🔒 **100% Local & Privado**: Utiliza IA local (**Ollama / Llama 3.2**) sem enviar dados para a nuvem.
