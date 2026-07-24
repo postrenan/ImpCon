@@ -11,7 +11,7 @@ temp
 build/ImpCon-Windows-x64
 build/*.7z*
 build/*.zip
-build/updates/*.zip
+!build/updates/*.zip
 
 # OS and Cache
 __pycache__
